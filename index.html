@@ -3,33 +3,33 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Just One More Tick</title>
+    <title>Starlight Foundry</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <main class="app">
       <header>
-        <h1>Just One More Tick</h1>
-        <p class="subtitle">The number goes up. The checklist grows. Your break gets delayed.</p>
+        <h1>Starlight Foundry</h1>
+        <p class="subtitle">Forge Flux. Build systems. Trigger overdrives. Chase the next breakthrough.</p>
       </header>
 
       <section class="resource-card">
         <div class="resource-main">
-          <p class="resource-label">Momentum</p>
-          <p id="momentumValue" class="resource-value">0</p>
+          <p class="resource-label">Flux</p>
+          <p id="fluxValue" class="resource-value">0</p>
           <p id="perSecond" class="resource-rate">+0 / sec</p>
         </div>
-        <button id="tapButton" class="primary-action">Do One More Thing (+1)</button>
+        <button id="tapButton" class="primary-action">Gather Flux</button>
       </section>
 
       <section class="grid">
         <article class="panel">
-          <h2>Producers</h2>
-          <div id="producerList" class="list"></div>
+          <h2>Structures</h2>
+          <div id="generatorList" class="list"></div>
         </article>
 
         <article class="panel">
-          <h2>Boosters</h2>
+          <h2>Research</h2>
           <div id="boosterList" class="list"></div>
         </article>
 
@@ -39,12 +39,19 @@
         </article>
 
         <article class="panel">
+          <h2>Abilities</h2>
+          <div id="abilityList" class="list"></div>
+        </article>
+
+        <article class="panel panel-wide">
           <h2>Session</h2>
           <div class="stats">
-            <p><span>Total Momentum:</span> <strong id="lifetimeValue">0</strong></p>
-            <p><span>Manual clicks:</span> <strong id="clicksValue">0</strong></p>
+            <p><span>Total Flux:</span> <strong id="lifetimeValue">0</strong></p>
+            <p><span>Manual gathers:</span> <strong id="clicksValue">0</strong></p>
             <p><span>Time played:</span> <strong id="timeValue">0s</strong></p>
-            <p><span>Next unlock:</span> <strong id="nextUnlockValue">-</strong></p>
+            <p><span>Prestiges:</span> <strong id="prestigeValue">0</strong></p>
+            <p><span>Core Fragments:</span> <strong id="fragmentsValue">0</strong></p>
+            <p><span>Next target:</span> <strong id="nextUnlockValue">-</strong></p>
           </div>
         </article>
       </section>
