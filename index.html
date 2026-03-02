@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Just One More Tick</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header>
+        <h1>Just One More Tick</h1>
+        <p class="subtitle">The number goes up. The checklist grows. Your break gets delayed.</p>
+      </header>
+
+      <section class="resource-card">
+        <div class="resource-main">
+          <p class="resource-label">Momentum</p>
+          <p id="momentumValue" class="resource-value">0</p>
+          <p id="perSecond" class="resource-rate">+0 / sec</p>
+        </div>
+        <button id="tapButton" class="primary-action">Do One More Thing (+1)</button>
+      </section>
+
+      <section class="grid">
+        <article class="panel">
+          <h2>Producers</h2>
+          <div id="producerList" class="list"></div>
+        </article>
+
+        <article class="panel">
+          <h2>Boosters</h2>
+          <div id="boosterList" class="list"></div>
+        </article>
+
+        <article class="panel">
+          <h2>Milestones</h2>
+          <ul id="milestoneList" class="milestone-list"></ul>
+        </article>
+
+        <article class="panel">
+          <h2>Session</h2>
+          <div class="stats">
+            <p><span>Total Momentum:</span> <strong id="lifetimeValue">0</strong></p>
+            <p><span>Manual clicks:</span> <strong id="clicksValue">0</strong></p>
+            <p><span>Time played:</span> <strong id="timeValue">0s</strong></p>
+            <p><span>Next unlock:</span> <strong id="nextUnlockValue">-</strong></p>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
