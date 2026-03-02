@@ -1,5 +1,5 @@
-const TICK_MS = 200;
-const SAVE_KEY = "starlight-foundry-save-v3";
+const TICK_MS = 250;
+const SAVE_KEY = "starlight-foundry-save-v4";
 
 const state = {
   flux: 0,
@@ -9,25 +9,23 @@ const state = {
   lastTick: Date.now(),
   prestiges: 0,
   fragments: 0,
-  overdriveUntil: 0,
-  overdriveCooldownUntil: 0,
   generators: [
-    { id: "drone", name: "Collector Drone", amount: 0, baseRate: 0.8, baseCost: 6, growth: 1.14, unlockAt: 0, desc: "Cheap starter worker." },
-    { id: "reactor", name: "Spark Reactor", amount: 0, baseRate: 4.2, baseCost: 70, growth: 1.18, unlockAt: 25, desc: "Reliable early engine." },
-    { id: "array", name: "Solar Array", amount: 0, baseRate: 20, baseCost: 520, growth: 1.22, unlockAt: 200, desc: "Bigger power, bigger climb." },
-    { id: "lab", name: "Quantum Lab", amount: 0, baseRate: 95, baseCost: 4300, growth: 1.24, unlockAt: 1400, desc: "High-tech production lane." },
-    { id: "forge", name: "Orbital Forge", amount: 0, baseRate: 460, baseCost: 36000, growth: 1.27, unlockAt: 12000, desc: "Serious AFK throughput." },
-    { id: "rift", name: "Rift Harvester", amount: 0, baseRate: 2300, baseCost: 320000, growth: 1.31, unlockAt: 100000, desc: "Late game acceleration." },
+    { id: "drone", name: "Collector Drone", amount: 0, baseRate: 0.2, baseCost: 12, growth: 1.17, unlockAt: 0, desc: "Entry-level passive collection." },
+    { id: "reactor", name: "Spark Reactor", amount: 0, baseRate: 1.1, baseCost: 140, growth: 1.2, unlockAt: 80, desc: "Stable but slower scaling." },
+    { id: "array", name: "Solar Array", amount: 0, baseRate: 5.5, baseCost: 1200, growth: 1.23, unlockAt: 600, desc: "Consistent mid-game production." },
+    { id: "lab", name: "Quantum Lab", amount: 0, baseRate: 24, baseCost: 9800, growth: 1.25, unlockAt: 4000, desc: "Research-driven throughput." },
+    { id: "forge", name: "Orbital Forge", amount: 0, baseRate: 110, baseCost: 85000, growth: 1.28, unlockAt: 30000, desc: "Strong long-session AFK gains." },
+    { id: "rift", name: "Rift Harvester", amount: 0, baseRate: 450, baseCost: 700000, growth: 1.31, unlockAt: 200000, desc: "Late-game specialization." },
   ],
   boosters: [
-    { id: "alg", name: "Optimization Algorithms", level: 0, max: 25, mult: 0.07, baseCost: 30, growth: 1.31, unlockAt: 10, desc: "+7% all production per level." },
-    { id: "mesh", name: "Nanite Mesh", level: 0, max: 18, mult: 0.13, baseCost: 260, growth: 1.39, unlockAt: 160, desc: "+13% all production per level." },
-    { id: "sync", name: "Temporal Sync", level: 0, max: 12, mult: 0.25, baseCost: 2200, growth: 1.48, unlockAt: 1300, desc: "+25% all production per level." },
-    { id: "sing", name: "Singularity Core", level: 0, max: 8, mult: 0.45, baseCost: 24000, growth: 1.6, unlockAt: 14000, desc: "+45% all production per level." },
+    { id: "alg", name: "Optimization Algorithms", level: 0, max: 20, mult: 0.05, baseCost: 70, growth: 1.34, unlockAt: 60, desc: "+5% all production per level." },
+    { id: "mesh", name: "Nanite Mesh", level: 0, max: 15, mult: 0.1, baseCost: 650, growth: 1.42, unlockAt: 500, desc: "+10% all production per level." },
+    { id: "sync", name: "Temporal Sync", level: 0, max: 10, mult: 0.18, baseCost: 6200, growth: 1.52, unlockAt: 3500, desc: "+18% all production per level." },
+    { id: "sing", name: "Singularity Core", level: 0, max: 7, mult: 0.32, baseCost: 58000, growth: 1.64, unlockAt: 28000, desc: "+32% all production per level." },
   ],
 };
 
-const milestones = [10, 30, 80, 200, 600, 1500, 5000, 15000, 60000, 250000, 1_000_000, 6_000_000, 30_000_000];
+const milestones = [10, 30, 80, 200, 600, 1500, 5000, 15000, 60000, 250000, 900000, 4_000_000];
 
 const el = {
   flux: document.getElementById("fluxValue"),
@@ -35,7 +33,6 @@ const el = {
   tap: document.getElementById("tapButton"),
   generators: document.getElementById("generatorList"),
   boosters: document.getElementById("boosterList"),
-  abilities: document.getElementById("abilityList"),
   milestones: document.getElementById("milestoneList"),
   lifetime: document.getElementById("lifetimeValue"),
   clicks: document.getElementById("clicksValue"),
@@ -46,15 +43,7 @@ const el = {
 };
 
 function fmt(v) {
-  if (v < 1000) return v.toFixed(1).replace(/\.0$/, "");
-  const units = ["K", "M", "B", "T", "Qa", "Qi", "Sx"];
-  let value = v;
-  let idx = -1;
-  while (value >= 1000 && idx < units.length - 1) {
-    value /= 1000;
-    idx += 1;
-  }
-  return `${value.toFixed(2)}${units[idx]}`;
+  return new Intl.NumberFormat("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(v);
 }
 
 function genCost(g, bulk = 1) {
@@ -68,32 +57,22 @@ function boostCost(b) {
 }
 
 function prestigeBonus() {
-  return 1 + state.fragments * 0.12;
-}
-
-function overdriveActive() {
-  return Date.now() < state.overdriveUntil;
-}
-
-function overdriveReady() {
-  return Date.now() >= state.overdriveCooldownUntil;
+  return 1 + state.fragments * 0.08;
 }
 
 function productionMultiplier() {
   const boosterMult = state.boosters.reduce((a, b) => a * (1 + b.level * b.mult), 1);
-  const overdriveMult = overdriveActive() ? 3 : 1;
-  return boosterMult * prestigeBonus() * overdriveMult;
+  return boosterMult * prestigeBonus();
 }
 
 function productionPerSecond() {
-  const baseline = 1; // guarantees visible tick-up at least once per second
+  const baseline = 0.25;
   const structureBase = state.generators.reduce((a, g) => a + g.amount * g.baseRate, 0);
   return baseline + structureBase * productionMultiplier();
 }
 
 function clickPower() {
-  const structureWeight = Math.sqrt(Math.max(1, state.generators.reduce((a, g) => a + g.amount, 0)));
-  return Math.max(1, Math.floor(structureWeight * prestigeBonus()));
+  return Math.max(1, Math.floor(1 + Math.sqrt(Math.max(0, state.fragments))));
 }
 
 function nextTarget() {
@@ -106,88 +85,78 @@ function nextTarget() {
 }
 
 function canPrestige() {
-  return state.lifetime >= 400_000;
+  return state.lifetime >= 500_000;
 }
 
 function prestigeGain() {
-  return Math.max(1, Math.floor(Math.sqrt(state.lifetime / 400_000)));
+  return Math.max(1, Math.floor(Math.sqrt(state.lifetime / 500_000)));
 }
 
-function itemCard(title, meta, desc, buttons) {
+function itemCard({ title, meta, desc, buttons, locked }) {
   const btns = buttons
-    .map(
-      (b) => `<button data-action="${b.action}" data-id="${b.id ?? ""}" data-bulk="${b.bulk ?? ""}" ${b.disabled ? "disabled" : ""}>${b.label}</button>`,
-    )
+    .map((b) => `<button data-action="${b.action}" data-id="${b.id ?? ""}" data-bulk="${b.bulk ?? ""}" ${b.disabled ? "disabled" : ""}>${b.label}</button>`)
     .join("");
-  return `<div class="item"><div class="item-head"><strong>${title}</strong><span>${meta}</span></div><p>${desc}</p><div class="item-actions">${btns}</div></div>`;
+  return `<div class="item ${locked ? "locked" : ""}"><div class="item-head"><strong>${title}</strong><span>${meta}</span></div><p>${desc}</p><div class="item-actions">${btns}</div></div>`;
 }
 
 function renderGenerators() {
   el.generators.innerHTML = state.generators
-    .filter((g) => state.lifetime >= g.unlockAt)
     .map((g) => {
+      const unlocked = state.lifetime >= g.unlockAt;
       const c1 = genCost(g, 1);
       const c10 = genCost(g, 10);
-      return itemCard(
-        `${g.name} (${g.amount})`,
-        `+${fmt(g.baseRate * productionMultiplier())}/s each`,
-        g.desc,
-        [
-          { action: "buy-generator", id: g.id, bulk: 1, label: `Buy 1 (${fmt(c1)})`, disabled: state.flux < c1 },
-          { action: "buy-generator", id: g.id, bulk: 10, label: `Buy 10 (${fmt(c10)})`, disabled: state.flux < c10 },
+      return itemCard({
+        title: `${g.name} (${g.amount})`,
+        meta: unlocked ? `+${fmt(g.baseRate * productionMultiplier())}/s each` : `Unlock at ${fmt(g.unlockAt)} Flux`,
+        desc: g.desc,
+        locked: !unlocked,
+        buttons: [
+          { action: "buy-generator", id: g.id, bulk: 1, label: unlocked ? `Buy 1 (${fmt(c1)})` : "Locked", disabled: !unlocked || state.flux < c1 },
+          { action: "buy-generator", id: g.id, bulk: 10, label: unlocked ? `Buy 10 (${fmt(c10)})` : "Locked", disabled: !unlocked || state.flux < c10 },
         ],
-      );
+      });
     })
     .join("");
 }
 
 function renderBoosters() {
-  const boosterCards = state.boosters
-    .filter((b) => state.lifetime >= b.unlockAt)
+  const cards = state.boosters
     .map((b) => {
+      const unlocked = state.lifetime >= b.unlockAt;
       const cost = boostCost(b);
       const available = b.level < b.max;
-      return itemCard(
-        `${b.name} (Lv ${b.level}/${b.max})`,
-        `x${(1 + b.level * b.mult).toFixed(2)}`,
-        b.desc,
-        [{ action: "buy-booster", id: b.id, label: available ? `Upgrade (${fmt(cost)})` : "MAXED", disabled: !available || state.flux < cost }],
-      );
+      return itemCard({
+        title: `${b.name} (Lv ${b.level}/${b.max})`,
+        meta: unlocked ? `x${(1 + b.level * b.mult).toFixed(2)}` : `Unlock at ${fmt(b.unlockAt)} Flux`,
+        desc: b.desc,
+        locked: !unlocked,
+        buttons: [
+          {
+            action: "buy-booster",
+            id: b.id,
+            label: unlocked ? (available ? `Upgrade (${fmt(cost)})` : "MAXED") : "Locked",
+            disabled: !unlocked || !available || state.flux < cost,
+          },
+        ],
+      });
     })
     .join("");
 
-  const prestigeCard = itemCard(
-    `Stellar Prestige (${state.prestiges})`,
-    `Fragments: ${state.fragments}`,
-    `Reset structures/research to gain permanent multiplier. Current bonus: x${prestigeBonus().toFixed(2)}.`,
-    [
+  const prestige = itemCard({
+    title: `Stellar Prestige (${state.prestiges})`,
+    meta: `Fragments: ${fmt(state.fragments)}`,
+    desc: `Reset structures and research for permanent gains. Current multiplier: x${prestigeBonus().toFixed(2)}.`,
+    locked: !canPrestige(),
+    buttons: [
       {
         action: "prestige",
-        label: canPrestige() ? `Prestige for +${prestigeGain()} Fragments` : "Need 400K total Flux",
+        label: canPrestige() ? `Prestige for +${fmt(prestigeGain())} Fragments` : "Need 500,000 total Flux",
         disabled: !canPrestige(),
       },
     ],
-  );
+  });
 
-  el.boosters.innerHTML = boosterCards + prestigeCard;
-}
-
-function renderAbilities() {
-  const overdriveLeft = Math.max(0, state.overdriveUntil - Date.now());
-  const cooldownLeft = Math.max(0, state.overdriveCooldownUntil - Date.now());
-
-  const text = overdriveActive()
-    ? `ACTIVE for ${(overdriveLeft / 1000).toFixed(1)}s (x3 production)`
-    : overdriveReady()
-      ? "Ready"
-      : `Cooldown ${(cooldownLeft / 1000).toFixed(1)}s`;
-
-  el.abilities.innerHTML = itemCard(
-    "Overdrive Burst",
-    text,
-    "x3 production for 10 seconds. 45 second cooldown. Great for timed buys.",
-    [{ action: "overdrive", label: overdriveReady() ? "Activate" : "Cooling Down", disabled: !overdriveReady() }],
-  );
+  el.boosters.innerHTML = cards + prestige;
 }
 
 function renderMilestones() {
@@ -199,27 +168,26 @@ function renderMilestones() {
 function renderStats() {
   const pps = productionPerSecond();
   el.flux.textContent = fmt(state.flux);
-  el.perSecond.textContent = `+${fmt(pps)} / sec (gather +${clickPower()})`;
+  el.perSecond.textContent = `+${fmt(pps)} / sec (gather +${fmt(clickPower())})`;
   el.lifetime.textContent = fmt(state.lifetime);
   el.clicks.textContent = String(state.clicks);
   el.time.textContent = `${Math.floor(state.playedMs / 1000)}s`;
   el.prestige.textContent = String(state.prestiges);
-  el.fragments.textContent = String(state.fragments);
+  el.fragments.textContent = fmt(state.fragments);
   const next = nextTarget();
-  el.next.textContent = next ? fmt(next) : "You are in deep-end scaling now";
+  el.next.textContent = next ? fmt(next) : "All milestones reached";
 }
 
 function renderAll() {
   renderStats();
   renderGenerators();
   renderBoosters();
-  renderAbilities();
   renderMilestones();
 }
 
 function buyGenerator(id, bulk) {
   const g = state.generators.find((x) => x.id === id);
-  if (!g) return;
+  if (!g || state.lifetime < g.unlockAt) return;
   const cost = genCost(g, bulk);
   if (state.flux < cost) return;
   state.flux -= cost;
@@ -228,7 +196,7 @@ function buyGenerator(id, bulk) {
 
 function buyBooster(id) {
   const b = state.boosters.find((x) => x.id === id);
-  if (!b || b.level >= b.max) return;
+  if (!b || state.lifetime < b.unlockAt || b.level >= b.max) return;
   const cost = boostCost(b);
   if (state.flux < cost) return;
   state.flux -= cost;
@@ -244,13 +212,6 @@ function doPrestige() {
   state.boosters.forEach((b) => (b.level = 0));
 }
 
-function activateOverdrive() {
-  if (!overdriveReady()) return;
-  const now = Date.now();
-  state.overdriveUntil = now + 10_000;
-  state.overdriveCooldownUntil = now + 45_000;
-}
-
 function save() {
   const payload = {
     flux: state.flux,
@@ -259,8 +220,6 @@ function save() {
     playedMs: state.playedMs,
     prestiges: state.prestiges,
     fragments: state.fragments,
-    overdriveUntil: state.overdriveUntil,
-    overdriveCooldownUntil: state.overdriveCooldownUntil,
     generators: state.generators.map((g) => ({ id: g.id, amount: g.amount })),
     boosters: state.boosters.map((b) => ({ id: b.id, level: b.level })),
   };
@@ -278,8 +237,6 @@ function load() {
     state.playedMs = p.playedMs ?? state.playedMs;
     state.prestiges = p.prestiges ?? state.prestiges;
     state.fragments = p.fragments ?? state.fragments;
-    state.overdriveUntil = p.overdriveUntil ?? 0;
-    state.overdriveCooldownUntil = p.overdriveCooldownUntil ?? 0;
     p.generators?.forEach((x) => {
       const g = state.generators.find((y) => y.id === x.id);
       if (g) g.amount = x.amount;
@@ -304,17 +261,14 @@ el.tap.addEventListener("click", () => {
 function handleActionClick(e) {
   const btn = e.target.closest("button[data-action]");
   if (!btn) return;
-  const action = btn.dataset.action;
-  if (action === "buy-generator") buyGenerator(btn.dataset.id, Number(btn.dataset.bulk));
-  if (action === "buy-booster") buyBooster(btn.dataset.id);
-  if (action === "prestige") doPrestige();
-  if (action === "overdrive") activateOverdrive();
+  if (btn.dataset.action === "buy-generator") buyGenerator(btn.dataset.id, Number(btn.dataset.bulk));
+  if (btn.dataset.action === "buy-booster") buyBooster(btn.dataset.id);
+  if (btn.dataset.action === "prestige") doPrestige();
   renderAll();
 }
 
 el.generators.addEventListener("click", handleActionClick);
 el.boosters.addEventListener("click", handleActionClick);
-el.abilities.addEventListener("click", handleActionClick);
 
 function tick() {
   const now = Date.now();

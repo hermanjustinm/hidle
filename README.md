@@ -1,17 +1,15 @@
 # Starlight Foundry
 
-An idle/incremental browser game built for long-term progression with both AFK and active play.
+A slower-paced idle/incremental browser game focused on stable long-term progression.
 
 ## Play
 
-Open `index.html` in any modern browser.
+Open `index.html` in a modern browser.
 
-## What's improved
+## Recent tuning
 
-- Meaningful names/theme (no placeholder mechanic text as labels).
-- All upgrade interactions use delegated click handlers and now work reliably.
-- Guaranteed passive gain baseline (+1/sec) so numbers always tick up.
-- Multiple structure tiers with exponential scaling and unlock thresholds.
-- Bulk buying for smoother mid-game pacing.
-- Research upgrades, timed Overdrive ability, and prestige loop with permanent scaling.
-- Auto-save via `localStorage`.
+- Slowed progression curve (lower base rates, higher costs, tighter scaling).
+- Removed active burst/3x ability to keep pacing consistent.
+- Stabilized UI layout by always rendering all structures/research as locked/unlocked cards (no major panel jumping).
+- Reduced number formatting noise to at most 2 decimal places.
+- Kept persistence with localStorage plus prestige for long-run goals.
