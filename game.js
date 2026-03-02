@@ -174,14 +174,17 @@ function formatNum(n) {
   const neg = n < 0;
   n = Math.abs(n);
 
-  if (n < 1e-3) {
-    // Scientific notation for tiny numbers
-    const exp = Math.floor(Math.log10(n));
-    const coeff = n / Math.pow(10, exp);
-    return (neg ? '-' : '') + coeff.toFixed(2) + 'e' + (exp >= 0 ? '+' : '') + exp;
+  if (n < 1) {
+    // Decimal notation — show enough places to display the leading significant digit + 2 more.
+    // e.g. 1e-10 → "0.0000000001", 1.5e-10 → "0.00000000015", 2.34e-7 → "0.000000234"
+    const exp = Math.floor(Math.log10(n)); // negative, e.g. -10 for 1e-10
+    const places = Math.min(-exp + 2, 15);
+    const str = n.toFixed(places);
+    // Trim trailing zeros so "0.000000000100" → "0.0000000001"
+    return (neg ? '-' : '') + str.replace(/0+$/, '').replace(/\.$/, '');
   }
   if (n < 1000) {
-    const decimals = n < 10 ? 3 : n < 100 ? 2 : 1;
+    const decimals = n < 10 ? 2 : n < 100 ? 1 : 0;
     return (neg ? '-' : '') + n.toFixed(decimals);
   }
   const tier = Math.min(Math.floor(Math.log10(n) / 3), SUFFIXES.length - 1);
@@ -189,7 +192,7 @@ function formatNum(n) {
     const scaled = n / Math.pow(1000, tier);
     return (neg ? '-' : '') + scaled.toFixed(2) + SUFFIXES[tier];
   }
-  // Fall back to e-notation for astronomical numbers
+  // Fallback for truly astronomical numbers
   const exp = Math.floor(Math.log10(n));
   const coeff = n / Math.pow(10, exp);
   return (neg ? '-' : '') + coeff.toFixed(2) + 'e+' + exp;
