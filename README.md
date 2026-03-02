@@ -1,15 +1,15 @@
 # Starlight Foundry
 
-A slower-paced idle/incremental browser game focused on stable long-term progression.
+A pure idle incremental game (no manual click gather) with fixed-layout UI and slow decimal-based progression.
 
-## Play
+## Core rules
 
-Open `index.html` in a modern browser.
+- Starting passive rate is exactly `0.00001` Flux/sec.
+- All key numeric displays use 5 decimal places.
+- Structures and research are always rendered as cards (locked or unlocked) so layout stays stable.
+- Progression is tuned around small-decimal values and scaled costs.
+- Prestige remains for long-run progression and saves persist via `localStorage`.
 
-## Recent tuning
+## Run
 
-- Slowed progression curve (lower base rates, higher costs, tighter scaling).
-- Removed active burst/3x ability to keep pacing consistent.
-- Stabilized UI layout by always rendering all structures/research as locked/unlocked cards (no major panel jumping).
-- Reduced number formatting noise to at most 2 decimal places.
-- Kept persistence with localStorage plus prestige for long-run goals.
+Open `index.html` in any modern browser.

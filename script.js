@@ -1,41 +1,42 @@
-const TICK_MS = 250;
-const SAVE_KEY = "starlight-foundry-save-v4";
+const TICK_MS = 200;
+const SAVE_KEY = "starlight-foundry-save-v5";
+
+const STARTING_RATE = 0.00001;
 
 const state = {
   flux: 0,
   lifetime: 0,
-  clicks: 0,
   playedMs: 0,
   lastTick: Date.now(),
   prestiges: 0,
   fragments: 0,
   generators: [
-    { id: "drone", name: "Collector Drone", amount: 0, baseRate: 0.2, baseCost: 12, growth: 1.17, unlockAt: 0, desc: "Entry-level passive collection." },
-    { id: "reactor", name: "Spark Reactor", amount: 0, baseRate: 1.1, baseCost: 140, growth: 1.2, unlockAt: 80, desc: "Stable but slower scaling." },
-    { id: "array", name: "Solar Array", amount: 0, baseRate: 5.5, baseCost: 1200, growth: 1.23, unlockAt: 600, desc: "Consistent mid-game production." },
-    { id: "lab", name: "Quantum Lab", amount: 0, baseRate: 24, baseCost: 9800, growth: 1.25, unlockAt: 4000, desc: "Research-driven throughput." },
-    { id: "forge", name: "Orbital Forge", amount: 0, baseRate: 110, baseCost: 85000, growth: 1.28, unlockAt: 30000, desc: "Strong long-session AFK gains." },
-    { id: "rift", name: "Rift Harvester", amount: 0, baseRate: 450, baseCost: 700000, growth: 1.31, unlockAt: 200000, desc: "Late-game specialization." },
+    { id: "collector", name: "Dust Collector", amount: 0, baseRate: 0.00005, baseCost: 0.00030, growth: 1.16, unlockAt: 0.0, desc: "First passive collector." },
+    { id: "refiner", name: "Flux Refiner", amount: 0, baseRate: 0.00030, baseCost: 0.00400, growth: 1.18, unlockAt: 0.00100, desc: "Refines ambient particles." },
+    { id: "array", name: "Harmonic Array", amount: 0, baseRate: 0.00180, baseCost: 0.05000, growth: 1.2, unlockAt: 0.01200, desc: "Stabilizes background generation." },
+    { id: "reactor", name: "Micro Reactor", amount: 0, baseRate: 0.01000, baseCost: 0.75000, growth: 1.22, unlockAt: 0.12000, desc: "Sustained idle throughput." },
+    { id: "matrix", name: "Lattice Matrix", amount: 0, baseRate: 0.05500, baseCost: 8.00000, growth: 1.24, unlockAt: 1.00000, desc: "Mid-run production backbone." },
+    { id: "forge", name: "Stellar Forge", amount: 0, baseRate: 0.30000, baseCost: 95.00000, growth: 1.27, unlockAt: 12.00000, desc: "Long-session engine." },
   ],
   boosters: [
-    { id: "alg", name: "Optimization Algorithms", level: 0, max: 20, mult: 0.05, baseCost: 70, growth: 1.34, unlockAt: 60, desc: "+5% all production per level." },
-    { id: "mesh", name: "Nanite Mesh", level: 0, max: 15, mult: 0.1, baseCost: 650, growth: 1.42, unlockAt: 500, desc: "+10% all production per level." },
-    { id: "sync", name: "Temporal Sync", level: 0, max: 10, mult: 0.18, baseCost: 6200, growth: 1.52, unlockAt: 3500, desc: "+18% all production per level." },
-    { id: "sing", name: "Singularity Core", level: 0, max: 7, mult: 0.32, baseCost: 58000, growth: 1.64, unlockAt: 28000, desc: "+32% all production per level." },
+    { id: "opt", name: "Process Optimization", level: 0, max: 20, mult: 0.06, baseCost: 0.00300, growth: 1.26, unlockAt: 0.00080, desc: "+6% all production per level." },
+    { id: "mesh", name: "Nanite Mesh", level: 0, max: 15, mult: 0.11, baseCost: 0.04000, growth: 1.32, unlockAt: 0.00800, desc: "+11% all production per level." },
+    { id: "sync", name: "Temporal Sync", level: 0, max: 12, mult: 0.18, baseCost: 0.60000, growth: 1.4, unlockAt: 0.08000, desc: "+18% all production per level." },
+    { id: "core", name: "Singularity Core", level: 0, max: 8, mult: 0.3, baseCost: 7.50000, growth: 1.5, unlockAt: 0.90000, desc: "+30% all production per level." },
   ],
 };
 
-const milestones = [10, 30, 80, 200, 600, 1500, 5000, 15000, 60000, 250000, 900000, 4_000_000];
+const milestones = [
+  0.001, 0.005, 0.02, 0.08, 0.3, 1.0, 3.0, 10.0, 40.0, 150.0, 500.0, 2000.0,
+];
 
 const el = {
   flux: document.getElementById("fluxValue"),
   perSecond: document.getElementById("perSecond"),
-  tap: document.getElementById("tapButton"),
   generators: document.getElementById("generatorList"),
   boosters: document.getElementById("boosterList"),
   milestones: document.getElementById("milestoneList"),
   lifetime: document.getElementById("lifetimeValue"),
-  clicks: document.getElementById("clicksValue"),
   time: document.getElementById("timeValue"),
   prestige: document.getElementById("prestigeValue"),
   fragments: document.getElementById("fragmentsValue"),
@@ -43,7 +44,10 @@ const el = {
 };
 
 function fmt(v) {
-  return new Intl.NumberFormat("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(v);
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 5,
+    maximumFractionDigits: 5,
+  }).format(v);
 }
 
 function genCost(g, bulk = 1) {
@@ -57,22 +61,17 @@ function boostCost(b) {
 }
 
 function prestigeBonus() {
-  return 1 + state.fragments * 0.08;
+  return 1 + state.fragments * 0.05;
 }
 
 function productionMultiplier() {
-  const boosterMult = state.boosters.reduce((a, b) => a * (1 + b.level * b.mult), 1);
-  return boosterMult * prestigeBonus();
+  const researchMult = state.boosters.reduce((acc, b) => acc * (1 + b.level * b.mult), 1);
+  return researchMult * prestigeBonus();
 }
 
 function productionPerSecond() {
-  const baseline = 0.25;
-  const structureBase = state.generators.reduce((a, g) => a + g.amount * g.baseRate, 0);
-  return baseline + structureBase * productionMultiplier();
-}
-
-function clickPower() {
-  return Math.max(1, Math.floor(1 + Math.sqrt(Math.max(0, state.fragments))));
+  const structureRate = state.generators.reduce((acc, g) => acc + g.amount * g.baseRate, 0);
+  return STARTING_RATE + structureRate * productionMultiplier();
 }
 
 function nextTarget() {
@@ -85,16 +84,21 @@ function nextTarget() {
 }
 
 function canPrestige() {
-  return state.lifetime >= 500_000;
+  return state.lifetime >= 50;
 }
 
 function prestigeGain() {
-  return Math.max(1, Math.floor(Math.sqrt(state.lifetime / 500_000)));
+  return Math.max(1, Math.floor(Math.sqrt(state.lifetime / 50)));
 }
 
 function itemCard({ title, meta, desc, buttons, locked }) {
   const btns = buttons
-    .map((b) => `<button data-action="${b.action}" data-id="${b.id ?? ""}" data-bulk="${b.bulk ?? ""}" ${b.disabled ? "disabled" : ""}>${b.label}</button>`)
+    .map(
+      (b) =>
+        `<button data-action="${b.action}" data-id="${b.id ?? ""}" data-bulk="${b.bulk ?? ""}" ${
+          b.disabled ? "disabled" : ""
+        }>${b.label}</button>`,
+    )
     .join("");
   return `<div class="item ${locked ? "locked" : ""}"><div class="item-head"><strong>${title}</strong><span>${meta}</span></div><p>${desc}</p><div class="item-actions">${btns}</div></div>`;
 }
@@ -107,12 +111,24 @@ function renderGenerators() {
       const c10 = genCost(g, 10);
       return itemCard({
         title: `${g.name} (${g.amount})`,
-        meta: unlocked ? `+${fmt(g.baseRate * productionMultiplier())}/s each` : `Unlock at ${fmt(g.unlockAt)} Flux`,
+        meta: unlocked ? `+${fmt(g.baseRate * productionMultiplier())}/sec each` : `Unlock at ${fmt(g.unlockAt)}`,
         desc: g.desc,
         locked: !unlocked,
         buttons: [
-          { action: "buy-generator", id: g.id, bulk: 1, label: unlocked ? `Buy 1 (${fmt(c1)})` : "Locked", disabled: !unlocked || state.flux < c1 },
-          { action: "buy-generator", id: g.id, bulk: 10, label: unlocked ? `Buy 10 (${fmt(c10)})` : "Locked", disabled: !unlocked || state.flux < c10 },
+          {
+            action: "buy-generator",
+            id: g.id,
+            bulk: 1,
+            label: unlocked ? `Buy 1 (${fmt(c1)})` : "Locked",
+            disabled: !unlocked || state.flux < c1,
+          },
+          {
+            action: "buy-generator",
+            id: g.id,
+            bulk: 10,
+            label: unlocked ? `Buy 10 (${fmt(c10)})` : "Locked",
+            disabled: !unlocked || state.flux < c10,
+          },
         ],
       });
     })
@@ -120,14 +136,14 @@ function renderGenerators() {
 }
 
 function renderBoosters() {
-  const cards = state.boosters
+  const researchCards = state.boosters
     .map((b) => {
       const unlocked = state.lifetime >= b.unlockAt;
-      const cost = boostCost(b);
       const available = b.level < b.max;
+      const cost = boostCost(b);
       return itemCard({
         title: `${b.name} (Lv ${b.level}/${b.max})`,
-        meta: unlocked ? `x${(1 + b.level * b.mult).toFixed(2)}` : `Unlock at ${fmt(b.unlockAt)} Flux`,
+        meta: unlocked ? `x${(1 + b.level * b.mult).toFixed(5)}` : `Unlock at ${fmt(b.unlockAt)}`,
         desc: b.desc,
         locked: !unlocked,
         buttons: [
@@ -142,40 +158,44 @@ function renderBoosters() {
     })
     .join("");
 
-  const prestige = itemCard({
+  const prestigeCard = itemCard({
     title: `Stellar Prestige (${state.prestiges})`,
     meta: `Fragments: ${fmt(state.fragments)}`,
-    desc: `Reset structures and research for permanent gains. Current multiplier: x${prestigeBonus().toFixed(2)}.`,
+    desc: `Reset all structures/research for permanent scaling. Current multiplier: x${prestigeBonus().toFixed(5)}.`,
     locked: !canPrestige(),
     buttons: [
       {
         action: "prestige",
-        label: canPrestige() ? `Prestige for +${fmt(prestigeGain())} Fragments` : "Need 500,000 total Flux",
+        label: canPrestige() ? `Prestige for +${fmt(prestigeGain())} Fragments` : "Need 50.00000 total Flux",
         disabled: !canPrestige(),
       },
     ],
   });
 
-  el.boosters.innerHTML = cards + prestige;
+  el.boosters.innerHTML = researchCards + prestigeCard;
 }
 
 function renderMilestones() {
   el.milestones.innerHTML = milestones
-    .map((m) => `<li class="${state.lifetime >= m ? "done" : ""}">${state.lifetime >= m ? "✓" : "○"} Reach ${fmt(m)} total Flux</li>`)
+    .map(
+      (m) =>
+        `<li class="${state.lifetime >= m ? "done" : ""}">${state.lifetime >= m ? "✓" : "○"} Reach ${fmt(
+          m,
+        )} total Flux</li>`,
+    )
     .join("");
 }
 
 function renderStats() {
   const pps = productionPerSecond();
   el.flux.textContent = fmt(state.flux);
-  el.perSecond.textContent = `+${fmt(pps)} / sec (gather +${fmt(clickPower())})`;
+  el.perSecond.textContent = `+${fmt(pps)} / sec`;
   el.lifetime.textContent = fmt(state.lifetime);
-  el.clicks.textContent = String(state.clicks);
   el.time.textContent = `${Math.floor(state.playedMs / 1000)}s`;
   el.prestige.textContent = String(state.prestiges);
   el.fragments.textContent = fmt(state.fragments);
   const next = nextTarget();
-  el.next.textContent = next ? fmt(next) : "All milestones reached";
+  el.next.textContent = next ? fmt(next) : "All milestone tracks complete";
 }
 
 function renderAll() {
@@ -208,15 +228,18 @@ function doPrestige() {
   state.fragments += prestigeGain();
   state.prestiges += 1;
   state.flux = 0;
-  state.generators.forEach((g) => (g.amount = 0));
-  state.boosters.forEach((b) => (b.level = 0));
+  state.generators.forEach((g) => {
+    g.amount = 0;
+  });
+  state.boosters.forEach((b) => {
+    b.level = 0;
+  });
 }
 
 function save() {
   const payload = {
     flux: state.flux,
     lifetime: state.lifetime,
-    clicks: state.clicks,
     playedMs: state.playedMs,
     prestiges: state.prestiges,
     fragments: state.fragments,
@@ -233,7 +256,6 @@ function load() {
     const p = JSON.parse(raw);
     state.flux = p.flux ?? state.flux;
     state.lifetime = p.lifetime ?? state.lifetime;
-    state.clicks = p.clicks ?? state.clicks;
     state.playedMs = p.playedMs ?? state.playedMs;
     state.prestiges = p.prestiges ?? state.prestiges;
     state.fragments = p.fragments ?? state.fragments;
@@ -249,14 +271,6 @@ function load() {
     localStorage.removeItem(SAVE_KEY);
   }
 }
-
-el.tap.addEventListener("click", () => {
-  const gain = clickPower();
-  state.flux += gain;
-  state.lifetime += gain;
-  state.clicks += 1;
-  renderAll();
-});
 
 function handleActionClick(e) {
   const btn = e.target.closest("button[data-action]");
@@ -275,9 +289,11 @@ function tick() {
   const dt = Math.min((now - state.lastTick) / 1000, 2);
   state.lastTick = now;
   state.playedMs += dt * 1000;
+
   const gain = productionPerSecond() * dt;
   state.flux += gain;
   state.lifetime += gain;
+
   renderAll();
   save();
 }
