@@ -5,7 +5,7 @@
 // ============================================================
 
 const BASE_RATE          = 1e-10;   // W/s baseline
-const PRESTIGE_THRESHOLD = 1e12;    // Minimum run warmth to prestige
+const PRESTIGE_THRESHOLD = 1.0;     // Minimum run warmth to prestige (1.0000000000 W)
 const OFFLINE_CAP_BASE   = 28800;   // 8 hours default offline cap
 const AUTOSAVE_MS        = 30000;   // 30 seconds
 const TICK_MS            = 200;     // UI update rate
@@ -17,17 +17,21 @@ const TICK_MS            = 200;     // UI update rate
 // baseRate: warmth/sec per unit
 // costMult: cost multiplier per unit owned
 
+// Costs are 10× per tier so progression naturally gates higher tiers behind prestiges.
+// Rates are 5× per tier — worth buying but won't blow past the 1W threshold.
+// First Hearth (4e-9 W) is reachable in ~40 s at BASE_RATE.
+// Star Engine (4 W) costs 4× the prestige threshold — a multi-run goal.
 const GEN_DEFS = [
-  { id: 'hearth',  name: 'Hearth',      desc: 'A small fire, barely alive.',           baseCost: 1.5e-8, baseRate: 3e-11,  costMult: 1.15 },
-  { id: 'forge',   name: 'Forge',        desc: 'Coals endure where flames fail.',       baseCost: 2e-6,   baseRate: 2e-9,   costMult: 1.15 },
-  { id: 'mill',    name: 'Mill',          desc: 'Grinding slowly through the cold.',    baseCost: 3e-4,   baseRate: 1.5e-7, costMult: 1.15 },
-  { id: 'furnace', name: 'Furnace',      desc: 'Industrial heat — slow, relentless.',   baseCost: 0.05,   baseRate: 1e-5,   costMult: 1.15 },
-  { id: 'kiln',    name: 'Kiln',          desc: 'Firing clay into civilization.',       baseCost: 8,      baseRate: 7e-4,   costMult: 1.15 },
-  { id: 'smelter', name: 'Smelter',      desc: 'Metal born from sustained fire.',       baseCost: 1500,   baseRate: 0.05,   costMult: 1.15 },
-  { id: 'foundry', name: 'Foundry',      desc: 'Where raw ore becomes empire.',         baseCost: 3e5,    baseRate: 4,      costMult: 1.15 },
-  { id: 'reactor', name: 'Reactor',      desc: 'Controlled nuclear fire.',              baseCost: 7e7,    baseRate: 300,    costMult: 1.15 },
-  { id: 'suncore', name: 'Sun Core',     desc: 'A miniature star, contained.',          baseCost: 2e10,   baseRate: 25000,  costMult: 1.15 },
-  { id: 'stellar', name: 'Star Engine',  desc: 'Harnessing the light of creation.',     baseCost: 6e12,   baseRate: 2e6,    costMult: 1.15 },
+  { id: 'hearth',  name: 'Hearth',      desc: 'A small fire, barely alive.',           baseCost: 4e-9,  baseRate: 3e-11,  costMult: 1.15 },
+  { id: 'forge',   name: 'Forge',        desc: 'Coals endure where flames fail.',       baseCost: 4e-8,  baseRate: 1.5e-10, costMult: 1.15 },
+  { id: 'mill',    name: 'Mill',          desc: 'Grinding slowly through the cold.',    baseCost: 4e-7,  baseRate: 7.5e-10, costMult: 1.15 },
+  { id: 'furnace', name: 'Furnace',      desc: 'Industrial heat — slow, relentless.',   baseCost: 4e-6,  baseRate: 3.75e-9, costMult: 1.15 },
+  { id: 'kiln',    name: 'Kiln',          desc: 'Firing clay into civilization.',       baseCost: 4e-5,  baseRate: 1.9e-8,  costMult: 1.15 },
+  { id: 'smelter', name: 'Smelter',      desc: 'Metal born from sustained fire.',       baseCost: 4e-4,  baseRate: 9.4e-8,  costMult: 1.15 },
+  { id: 'foundry', name: 'Foundry',      desc: 'Where raw ore becomes empire.',         baseCost: 4e-3,  baseRate: 4.7e-7,  costMult: 1.15 },
+  { id: 'reactor', name: 'Reactor',      desc: 'Controlled nuclear fire.',              baseCost: 0.04,  baseRate: 2.3e-6,  costMult: 1.15 },
+  { id: 'suncore', name: 'Sun Core',     desc: 'A miniature star, contained.',          baseCost: 0.4,   baseRate: 1.15e-5, costMult: 1.15 },
+  { id: 'stellar', name: 'Star Engine',  desc: 'Harnessing the light of creation.',     baseCost: 4.0,   baseRate: 5.75e-5, costMult: 1.15 },
 ];
 
 // Milestone bonuses: [count_threshold, multiplier]
@@ -40,63 +44,66 @@ const MILESTONES = [[10, 2], [25, 4], [50, 8], [100, 15], [200, 30]];
 // req: { generatorId: minCount } to display/unlock
 // ============================================================
 
+// Costs scale with the 1W prestige threshold.
+// Tier 0-7 upgrades are reachable in early/mid runs.
+// Tier 8-9 upgrades and high-req upgrades are multi-prestige goals.
 const UPGRADE_DEFS = [
   // Hearth
-  { id: 'h1',  name: 'Dry Wood',        desc: 'Hearths produce 2\u00d7 more.',    cost: 5e-8,   gen: 'hearth',   mult: 2,  req: { hearth: 1  } },
-  { id: 'h2',  name: 'Bellows',         desc: 'Hearths produce 3\u00d7 more.',    cost: 5e-7,   gen: 'hearth',   mult: 3,  req: { hearth: 10 } },
-  { id: 'h3',  name: 'Stone Chimney',   desc: 'Hearths produce 5\u00d7 more.',    cost: 8e-6,   gen: 'hearth',   mult: 5,  req: { hearth: 25 } },
-  { id: 'h4',  name: 'Iron Grate',      desc: 'Hearths produce 10\u00d7 more.',   cost: 1e-4,   gen: 'hearth',   mult: 10, req: { hearth: 50 } },
+  { id: 'h1',  name: 'Dry Wood',        desc: 'Hearths produce 2\u00d7 more.',    cost: 5e-8,  gen: 'hearth',   mult: 2,  req: { hearth: 1  } },
+  { id: 'h2',  name: 'Bellows',         desc: 'Hearths produce 3\u00d7 more.',    cost: 2e-7,  gen: 'hearth',   mult: 3,  req: { hearth: 10 } },
+  { id: 'h3',  name: 'Stone Chimney',   desc: 'Hearths produce 5\u00d7 more.',    cost: 1e-6,  gen: 'hearth',   mult: 5,  req: { hearth: 25 } },
+  { id: 'h4',  name: 'Iron Grate',      desc: 'Hearths produce 10\u00d7 more.',   cost: 5e-6,  gen: 'hearth',   mult: 10, req: { hearth: 50 } },
   // Forge
-  { id: 'f1',  name: 'Quality Coal',    desc: 'Forges produce 2\u00d7 more.',     cost: 8e-6,   gen: 'forge',    mult: 2,  req: { forge: 1  } },
-  { id: 'f2',  name: 'Draft System',    desc: 'Forges produce 3\u00d7 more.',     cost: 8e-5,   gen: 'forge',    mult: 3,  req: { forge: 10 } },
-  { id: 'f3',  name: 'Fire Brick',      desc: 'Forges produce 5\u00d7 more.',     cost: 1.2e-3, gen: 'forge',    mult: 5,  req: { forge: 25 } },
-  { id: 'f4',  name: 'Coke Fuel',       desc: 'Forges produce 10\u00d7 more.',    cost: 0.018,  gen: 'forge',    mult: 10, req: { forge: 50 } },
+  { id: 'f1',  name: 'Quality Coal',    desc: 'Forges produce 2\u00d7 more.',     cost: 4e-7,  gen: 'forge',    mult: 2,  req: { forge: 1  } },
+  { id: 'f2',  name: 'Draft System',    desc: 'Forges produce 3\u00d7 more.',     cost: 2e-6,  gen: 'forge',    mult: 3,  req: { forge: 10 } },
+  { id: 'f3',  name: 'Fire Brick',      desc: 'Forges produce 5\u00d7 more.',     cost: 1e-5,  gen: 'forge',    mult: 5,  req: { forge: 25 } },
+  { id: 'f4',  name: 'Coke Fuel',       desc: 'Forges produce 10\u00d7 more.',    cost: 5e-5,  gen: 'forge',    mult: 10, req: { forge: 50 } },
   // Mill
-  { id: 'm1',  name: 'Stone Wheels',    desc: 'Mills produce 2\u00d7 more.',      cost: 1.2e-3, gen: 'mill',     mult: 2,  req: { mill: 1  } },
-  { id: 'm2',  name: 'Iron Axles',      desc: 'Mills produce 3\u00d7 more.',      cost: 0.012,  gen: 'mill',     mult: 3,  req: { mill: 10 } },
-  { id: 'm3',  name: 'Water Wheel',     desc: 'Mills produce 5\u00d7 more.',      cost: 0.2,    gen: 'mill',     mult: 5,  req: { mill: 25 } },
-  { id: 'm4',  name: 'Steam Mill',      desc: 'Mills produce 10\u00d7 more.',     cost: 3,      gen: 'mill',     mult: 10, req: { mill: 50 } },
+  { id: 'm1',  name: 'Stone Wheels',    desc: 'Mills produce 2\u00d7 more.',      cost: 4e-6,  gen: 'mill',     mult: 2,  req: { mill: 1  } },
+  { id: 'm2',  name: 'Iron Axles',      desc: 'Mills produce 3\u00d7 more.',      cost: 2e-5,  gen: 'mill',     mult: 3,  req: { mill: 10 } },
+  { id: 'm3',  name: 'Water Wheel',     desc: 'Mills produce 5\u00d7 more.',      cost: 1e-4,  gen: 'mill',     mult: 5,  req: { mill: 25 } },
+  { id: 'm4',  name: 'Steam Mill',      desc: 'Mills produce 10\u00d7 more.',     cost: 5e-4,  gen: 'mill',     mult: 10, req: { mill: 50 } },
   // Furnace
-  { id: 'fu1', name: 'Fireclay',        desc: 'Furnaces produce 2\u00d7 more.',   cost: 0.2,    gen: 'furnace',  mult: 2,  req: { furnace: 1  } },
-  { id: 'fu2', name: 'Preheater',       desc: 'Furnaces produce 3\u00d7 more.',   cost: 2.5,    gen: 'furnace',  mult: 3,  req: { furnace: 10 } },
-  { id: 'fu3', name: 'Forced Draft',    desc: 'Furnaces produce 5\u00d7 more.',   cost: 40,     gen: 'furnace',  mult: 5,  req: { furnace: 25 } },
-  { id: 'fu4', name: 'Recuperator',     desc: 'Furnaces produce 10\u00d7 more.',  cost: 600,    gen: 'furnace',  mult: 10, req: { furnace: 50 } },
+  { id: 'fu1', name: 'Fireclay',        desc: 'Furnaces produce 2\u00d7 more.',   cost: 4e-5,  gen: 'furnace',  mult: 2,  req: { furnace: 1  } },
+  { id: 'fu2', name: 'Preheater',       desc: 'Furnaces produce 3\u00d7 more.',   cost: 2e-4,  gen: 'furnace',  mult: 3,  req: { furnace: 10 } },
+  { id: 'fu3', name: 'Forced Draft',    desc: 'Furnaces produce 5\u00d7 more.',   cost: 1e-3,  gen: 'furnace',  mult: 5,  req: { furnace: 25 } },
+  { id: 'fu4', name: 'Recuperator',     desc: 'Furnaces produce 10\u00d7 more.',  cost: 5e-3,  gen: 'furnace',  mult: 10, req: { furnace: 50 } },
   // Kiln
-  { id: 'k1',  name: 'Insulation',      desc: 'Kilns produce 2\u00d7 more.',      cost: 35,     gen: 'kiln',     mult: 2,  req: { kiln: 1  } },
-  { id: 'k2',  name: 'Gas Kiln',        desc: 'Kilns produce 3\u00d7 more.',      cost: 400,    gen: 'kiln',     mult: 3,  req: { kiln: 10 } },
-  { id: 'k3',  name: 'Electric Arc',    desc: 'Kilns produce 5\u00d7 more.',      cost: 6000,   gen: 'kiln',     mult: 5,  req: { kiln: 25 } },
-  { id: 'k4',  name: 'Plasma Kiln',     desc: 'Kilns produce 10\u00d7 more.',     cost: 9e4,    gen: 'kiln',     mult: 10, req: { kiln: 50 } },
+  { id: 'k1',  name: 'Insulation',      desc: 'Kilns produce 2\u00d7 more.',      cost: 4e-4,  gen: 'kiln',     mult: 2,  req: { kiln: 1  } },
+  { id: 'k2',  name: 'Gas Kiln',        desc: 'Kilns produce 3\u00d7 more.',      cost: 2e-3,  gen: 'kiln',     mult: 3,  req: { kiln: 10 } },
+  { id: 'k3',  name: 'Electric Arc',    desc: 'Kilns produce 5\u00d7 more.',      cost: 0.01,  gen: 'kiln',     mult: 5,  req: { kiln: 25 } },
+  { id: 'k4',  name: 'Plasma Kiln',     desc: 'Kilns produce 10\u00d7 more.',     cost: 0.05,  gen: 'kiln',     mult: 10, req: { kiln: 50 } },
   // Smelter
-  { id: 's1',  name: 'Flux Agents',     desc: 'Smelters produce 2\u00d7 more.',   cost: 7000,   gen: 'smelter',  mult: 2,  req: { smelter: 1  } },
-  { id: 's2',  name: 'Oxygen Lance',    desc: 'Smelters produce 3\u00d7 more.',   cost: 8e4,    gen: 'smelter',  mult: 3,  req: { smelter: 10 } },
-  { id: 's3',  name: 'Arc Furnace',     desc: 'Smelters produce 5\u00d7 more.',   cost: 1.2e6,  gen: 'smelter',  mult: 5,  req: { smelter: 25 } },
-  { id: 's4',  name: 'Plasma Torch',    desc: 'Smelters produce 10\u00d7 more.',  cost: 1.8e7,  gen: 'smelter',  mult: 10, req: { smelter: 50 } },
+  { id: 's1',  name: 'Flux Agents',     desc: 'Smelters produce 2\u00d7 more.',   cost: 4e-3,  gen: 'smelter',  mult: 2,  req: { smelter: 1  } },
+  { id: 's2',  name: 'Oxygen Lance',    desc: 'Smelters produce 3\u00d7 more.',   cost: 0.02,  gen: 'smelter',  mult: 3,  req: { smelter: 10 } },
+  { id: 's3',  name: 'Arc Furnace',     desc: 'Smelters produce 5\u00d7 more.',   cost: 0.1,   gen: 'smelter',  mult: 5,  req: { smelter: 25 } },
+  { id: 's4',  name: 'Plasma Torch',    desc: 'Smelters produce 10\u00d7 more.',  cost: 0.5,   gen: 'smelter',  mult: 10, req: { smelter: 50 } },
   // Foundry
-  { id: 'fo1', name: 'Lost Wax',        desc: 'Foundries produce 2\u00d7 more.',  cost: 1.4e6,  gen: 'foundry',  mult: 2,  req: { foundry: 1  } },
-  { id: 'fo2', name: 'Die Casting',     desc: 'Foundries produce 3\u00d7 more.',  cost: 1.5e7,  gen: 'foundry',  mult: 3,  req: { foundry: 10 } },
-  { id: 'fo3', name: 'Centrifugal',     desc: 'Foundries produce 5\u00d7 more.',  cost: 2.5e8,  gen: 'foundry',  mult: 5,  req: { foundry: 25 } },
-  { id: 'fo4', name: 'Microgravity',    desc: 'Foundries produce 10\u00d7 more.', cost: 4e9,    gen: 'foundry',  mult: 10, req: { foundry: 50 } },
+  { id: 'fo1', name: 'Lost Wax',        desc: 'Foundries produce 2\u00d7 more.',  cost: 0.04,  gen: 'foundry',  mult: 2,  req: { foundry: 1  } },
+  { id: 'fo2', name: 'Die Casting',     desc: 'Foundries produce 3\u00d7 more.',  cost: 0.2,   gen: 'foundry',  mult: 3,  req: { foundry: 10 } },
+  { id: 'fo3', name: 'Centrifugal',     desc: 'Foundries produce 5\u00d7 more.',  cost: 1.0,   gen: 'foundry',  mult: 5,  req: { foundry: 25 } },
+  { id: 'fo4', name: 'Microgravity',    desc: 'Foundries produce 10\u00d7 more.', cost: 5.0,   gen: 'foundry',  mult: 10, req: { foundry: 50 } },
   // Reactor
-  { id: 'r1',  name: 'Enriched Fuel',   desc: 'Reactors produce 2\u00d7 more.',   cost: 3e8,    gen: 'reactor',  mult: 2,  req: { reactor: 1  } },
-  { id: 'r2',  name: 'Fast Neutrons',   desc: 'Reactors produce 3\u00d7 more.',   cost: 3.5e9,  gen: 'reactor',  mult: 3,  req: { reactor: 10 } },
-  { id: 'r3',  name: 'Thorium Cycle',   desc: 'Reactors produce 5\u00d7 more.',   cost: 6e10,   gen: 'reactor',  mult: 5,  req: { reactor: 25 } },
-  { id: 'r4',  name: 'Fusion Assist',   desc: 'Reactors produce 10\u00d7 more.',  cost: 9e11,   gen: 'reactor',  mult: 10, req: { reactor: 50 } },
+  { id: 'r1',  name: 'Enriched Fuel',   desc: 'Reactors produce 2\u00d7 more.',   cost: 0.1,   gen: 'reactor',  mult: 2,  req: { reactor: 1  } },
+  { id: 'r2',  name: 'Fast Neutrons',   desc: 'Reactors produce 3\u00d7 more.',   cost: 0.5,   gen: 'reactor',  mult: 3,  req: { reactor: 10 } },
+  { id: 'r3',  name: 'Thorium Cycle',   desc: 'Reactors produce 5\u00d7 more.',   cost: 2.0,   gen: 'reactor',  mult: 5,  req: { reactor: 25 } },
+  { id: 'r4',  name: 'Fusion Assist',   desc: 'Reactors produce 10\u00d7 more.',  cost: 10.0,  gen: 'reactor',  mult: 10, req: { reactor: 50 } },
   // Sun Core
-  { id: 'sc1', name: 'Magnetar Field',  desc: 'Sun Cores produce 2\u00d7 more.',  cost: 8e10,   gen: 'suncore',  mult: 2,  req: { suncore: 1  } },
-  { id: 'sc2', name: 'CNO Cycle',       desc: 'Sun Cores produce 3\u00d7 more.',  cost: 9e11,   gen: 'suncore',  mult: 3,  req: { suncore: 10 } },
-  { id: 'sc3', name: 'Quark Plasma',    desc: 'Sun Cores produce 5\u00d7 more.',  cost: 1.5e13, gen: 'suncore',  mult: 5,  req: { suncore: 25 } },
-  { id: 'sc4', name: 'Dyson Shell',     desc: 'Sun Cores produce 10\u00d7 more.', cost: 2.5e14, gen: 'suncore',  mult: 10, req: { suncore: 50 } },
+  { id: 'sc1', name: 'Magnetar Field',  desc: 'Sun Cores produce 2\u00d7 more.',  cost: 0.8,   gen: 'suncore',  mult: 2,  req: { suncore: 1  } },
+  { id: 'sc2', name: 'CNO Cycle',       desc: 'Sun Cores produce 3\u00d7 more.',  cost: 4.0,   gen: 'suncore',  mult: 3,  req: { suncore: 10 } },
+  { id: 'sc3', name: 'Quark Plasma',    desc: 'Sun Cores produce 5\u00d7 more.',  cost: 20.0,  gen: 'suncore',  mult: 5,  req: { suncore: 25 } },
+  { id: 'sc4', name: 'Dyson Shell',     desc: 'Sun Cores produce 10\u00d7 more.', cost: 100.0, gen: 'suncore',  mult: 10, req: { suncore: 50 } },
   // Star Engine
-  { id: 'se1', name: 'Hypernova Tap',   desc: 'Star Engines produce 2\u00d7 more.',  cost: 2.5e13, gen: 'stellar', mult: 2,  req: { stellar: 1  } },
-  { id: 'se2', name: 'Hawking Drive',   desc: 'Star Engines produce 3\u00d7 more.',  cost: 3e14,   gen: 'stellar', mult: 3,  req: { stellar: 10 } },
-  { id: 'se3', name: 'Cosmic String',   desc: 'Star Engines produce 5\u00d7 more.',  cost: 5e15,   gen: 'stellar', mult: 5,  req: { stellar: 25 } },
-  { id: 'se4', name: 'Dark Fusion',     desc: 'Star Engines produce 10\u00d7 more.', cost: 8e16,   gen: 'stellar', mult: 10, req: { stellar: 50 } },
+  { id: 'se1', name: 'Hypernova Tap',   desc: 'Star Engines produce 2\u00d7 more.',  cost: 10.0,  gen: 'stellar', mult: 2,  req: { stellar: 1  } },
+  { id: 'se2', name: 'Hawking Drive',   desc: 'Star Engines produce 3\u00d7 more.',  cost: 50.0,  gen: 'stellar', mult: 3,  req: { stellar: 10 } },
+  { id: 'se3', name: 'Cosmic String',   desc: 'Star Engines produce 5\u00d7 more.',  cost: 250.0, gen: 'stellar', mult: 5,  req: { stellar: 25 } },
+  { id: 'se4', name: 'Dark Fusion',     desc: 'Star Engines produce 10\u00d7 more.', cost: 1250.0, gen: 'stellar', mult: 10, req: { stellar: 50 } },
   // Global
-  { id: 'g1',  name: 'Thermal Theory',  desc: 'All generators \u00d71.5.',        cost: 1e-4,   gen: null, mult: 1.5, req: { forge: 1    } },
-  { id: 'g2',  name: 'Combustion Eng.', desc: 'All generators \u00d72.',          cost: 500,    gen: null, mult: 2,   req: { furnace: 5  } },
-  { id: 'g3',  name: 'Thermodynamics',  desc: 'All generators \u00d73.',          cost: 1e7,    gen: null, mult: 3,   req: { smelter: 5  } },
-  { id: 'g4',  name: 'Plasma Physics',  desc: 'All generators \u00d75.',          cost: 1e10,   gen: null, mult: 5,   req: { reactor: 5  } },
-  { id: 'g5',  name: 'Stellar Dyn.',    desc: 'All generators \u00d710.',         cost: 1e13,   gen: null, mult: 10,  req: { suncore: 5  } },
+  { id: 'g1',  name: 'Thermal Theory',  desc: 'All generators \u00d71.5.',        cost: 4e-7,  gen: null, mult: 1.5, req: { forge: 1    } },
+  { id: 'g2',  name: 'Combustion Eng.', desc: 'All generators \u00d72.',          cost: 1e-4,  gen: null, mult: 2,   req: { furnace: 5  } },
+  { id: 'g3',  name: 'Thermodynamics',  desc: 'All generators \u00d73.',          cost: 0.05,  gen: null, mult: 3,   req: { smelter: 5  } },
+  { id: 'g4',  name: 'Plasma Physics',  desc: 'All generators \u00d75.',          cost: 5.0,   gen: null, mult: 5,   req: { reactor: 5  } },
+  { id: 'g5',  name: 'Stellar Dyn.',    desc: 'All generators \u00d710.',         cost: 50.0,  gen: null, mult: 10,  req: { suncore: 5  } },
 ];
 
 // ============================================================
@@ -317,7 +324,8 @@ function calcECGained() {
   if (state.runWarmth < PRESTIGE_THRESHOLD) return 0;
   let bonus = 1;
   if (prestigeSet.has('p6')) bonus += 0.15;
-  return Math.max(1, Math.floor(Math.sqrt(state.runWarmth / 1e10) * bonus));
+  // 10 ECs at threshold (1 W), scaling by sqrt — diminishing returns for staying longer.
+  return Math.max(1, Math.floor(Math.sqrt(state.runWarmth) * 10 * bonus));
 }
 
 // ============================================================
