@@ -108,6 +108,36 @@ const UPGRADE_DEFS = [
   { id: 'g3',  name: 'Thermodynamics',  desc: 'All generators \u00d73.',     cost: 0.06,  gen: null, mult: 3,   req: { smelter: 5  } },
   { id: 'g4',  name: 'Plasma Physics',  desc: 'All generators \u00d75.',     cost: 0.6,   gen: null, mult: 5,   req: { reactor: 5  } },
   { id: 'g5',  name: 'Stellar Dyn.',    desc: 'All generators \u00d710.',    cost: 6.0,   gen: null, mult: 10,  req: { suncore: 5  } },
+
+  // ── Cross-tier synergy upgrades ───────────────────────────────────────────
+  // Reaching a higher tier unlocks a bonus for an older tier to keep it relevant.
+  // Costs ≈ 5–15× the unlocking generator's baseCost.
+
+  // Kiln (tier 4) unlocks
+  { id: 'ct01', name: 'Kiln Afterburn',    desc: 'Kiln exhaust superheats Forges \u00d72.',           cost: 2e-4,  gen: 'forge',   mult: 2,  req: { kiln: 1    } },
+
+  // Smelter (tier 5) unlocks
+  { id: 'ct02', name: 'Smelter Backdraft', desc: 'Smelter runoff rekindles Hearths \u00d73.',         cost: 2e-3,  gen: 'hearth',  mult: 3,  req: { smelter: 1 } },
+  { id: 'ct03', name: 'Slag Feed',         desc: 'Slag byproduct drives Mills \u00d72.',              cost: 4e-3,  gen: 'mill',    mult: 2,  req: { smelter: 5 } },
+
+  // Foundry (tier 6) unlocks
+  { id: 'ct04', name: 'Foundry Exhaust',   desc: 'Foundry waste heat floods Kilns \u00d73.',          cost: 0.02,  gen: 'kiln',    mult: 3,  req: { foundry: 1 } },
+  { id: 'ct05', name: 'Foundry Draught',   desc: 'Foundry updraft fans Forge flames \u00d73.',        cost: 0.04,  gen: 'forge',   mult: 3,  req: { foundry: 5 } },
+
+  // Reactor (tier 7) unlocks
+  { id: 'ct06', name: 'Reactor Warmth',    desc: 'Reactor ambient heat revives Hearths \u00d75.',     cost: 0.2,   gen: 'hearth',  mult: 5,  req: { reactor: 1 } },
+  { id: 'ct07', name: 'Reactor Steam',     desc: 'Steam loops supercharge Furnaces \u00d74.',         cost: 0.2,   gen: 'furnace', mult: 4,  req: { reactor: 1 } },
+  { id: 'ct08', name: 'Coolant Cascade',   desc: 'Reactor coolant flow boosts Smelters \u00d73.',     cost: 0.6,   gen: 'smelter', mult: 3,  req: { reactor: 5 } },
+
+  // Sun Core (tier 8) unlocks
+  { id: 'ct09', name: 'Solar Grinding',    desc: 'Solar energy supercharges Mills \u00d75.',           cost: 2.0,   gen: 'mill',    mult: 5,  req: { suncore: 1 } },
+  { id: 'ct10', name: 'Photon Heat',       desc: 'Photon bombardment superheats Furnaces \u00d75.',   cost: 2.0,   gen: 'furnace', mult: 5,  req: { suncore: 1 } },
+  { id: 'ct11', name: 'Solar Forge',       desc: 'Solar flux amplifies Foundries \u00d74.',           cost: 6.0,   gen: 'foundry', mult: 4,  req: { suncore: 5 } },
+
+  // Star Engine (tier 9) unlocks
+  { id: 'ct12', name: 'Stellar Legacy',    desc: 'Star engine exhaust makes Hearths burn stellar \u00d710.', cost: 20.0, gen: 'hearth',  mult: 10, req: { stellar: 1 } },
+  { id: 'ct13', name: 'Gravity Press',     desc: 'Gravity fields crush ore in Kilns \u00d76.',       cost: 20.0,  gen: 'kiln',    mult: 6,  req: { stellar: 1 } },
+  { id: 'ct14', name: 'Dark Matter Grind', desc: 'Dark matter particles amplify Mills \u00d78.',     cost: 60.0,  gen: 'mill',    mult: 8,  req: { stellar: 5 } },
 ];
 
 // ============================================================
